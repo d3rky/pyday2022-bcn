@@ -26,3 +26,13 @@ def run_fuzzing(data: bytes):
     """
     Put here your fuzzing code
     """
+    dp = atheris.FuzzedDataProvider(data)
+
+    length = dp.ConsumeIntInRange(0, 15)
+    permission = dp.ConsumeUnicodeNoSurrogates(length)
+
+    do_calc(permission)
+
+
+atheris.Setup(sys.argv, run_fuzzing)
+atheris.Fuzz()

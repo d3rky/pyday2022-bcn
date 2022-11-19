@@ -7,17 +7,22 @@ from account.models import Account
 
 def _key_value_validator(value):
     for permission in value:
-        if len({'key', 'value'} - permission.keys()):
+        if not isinstance(permission, dict):
+            raise ValidationError("Permissions should be dict")
+        elif len({'key', 'value'} - permission.keys()):
             raise ValidationError("Permissions should contain 'key', 'value' fields")
 
 
 class AccountSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(allow_blank=True)
+    # name = serializers.CharField(allow_blank=True)
     permissions = serializers.JSONField(validators=[_key_value_validator])
 
     class Meta:
         model = Account
         fields = ['id', 'name', 'permissions']
+        extra_kwargs = {
+            'name': {'allow_blank': True},
+        }
 
     def create(self, validated_data):
         validated_data['permissions'] = [
