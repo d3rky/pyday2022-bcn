@@ -1,1 +1,7 @@
-# pyday_bcn_2022
+# PyDay 2022 BCN Workshop "Friendly fuzzing for your Python SaaS applications"
+
+Materials for workshop on [PyDay 2022 BCN conference](https://pybcn.org/events/pyday_bcn/pyday_bcn_2022/)
+
+## How to use
+1. For workshop use the `main` branch
+1. Just to see the results use the `results` branch
