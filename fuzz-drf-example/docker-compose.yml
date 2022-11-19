@@ -1,0 +1,63 @@
+version: '3'
+services:
+  fuzz:
+    container_name: fuzz-drf-example
+    image: fuzz-drf-example
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      bash -c 'dockerize -wait tcp://db_ram:3306 -timeout 50s &&
+      python manage.py migrate &&
+      python fuzz.py -atheris_runs=10000'
+    volumes:
+      - ./fuzz_drf_example:/app
+
+  coverage:
+    container_name: fuzz-drf-example
+    image: fuzz-drf-example
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      bash -c 'python -m coverage run fuzz.py -atheris_runs=1000000 &&
+      python -m coverage html &&
+      cd htmlcov &&
+      python -m http.server 8000'
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fuzz_drf_example:/app
+
+  server:
+    container_name: fuzz-drf-example
+    image: fuzz-drf-example
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      bash -c 'python manage.py migrate &&
+      python manage.py collectstatic &&
+      python manage.py runserver 0.0.0.0:8000'
+    expose:
+      - "8000"
+    volumes:
+      - ./fuzz_drf_example:/app
+    ports:
+      - "8000:8000"
+
+  test:
+    container_name: fuzz-drf-example-test
+    image: fuzz-drf-example-test
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      bash -c 'pytest --cov=. &&
+      coverage html &&
+      cd htmlcov &&
+      python -m http.server 8000'
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fuzz_drf_example:/app
