@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             name='Account',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=32, null=True, verbose_name='Name')),
+                ('name', models.CharField(max_length=10, null=True, verbose_name='Name')),
                 ('permissions', models.JSONField(default=account.models._default_permissions, verbose_name='Permissions')),
             ],
         ),

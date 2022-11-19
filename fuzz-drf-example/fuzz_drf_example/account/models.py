@@ -6,5 +6,5 @@ def _default_permissions():
 
 
 class Account(models.Model):
-    name = models.CharField('Name', max_length=32, null=True)
+    name = models.CharField('Name', max_length=10, null=True)
     permissions = models.JSONField('Permissions', default=_default_permissions)

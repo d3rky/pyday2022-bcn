@@ -2,3 +2,4 @@ db.*
 *.pyc
 .coverage
 htmlcov/
+__pycache__/

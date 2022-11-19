@@ -1,15 +1,25 @@
 version: '3'
 services:
+  db_ram:
+    image: postgres:11.5
+    tmpfs:
+      - /var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: 1q2w3e
+      POSTGRES_DB: fuzz
+
   fuzz:
     container_name: fuzz-drf-example
     image: fuzz-drf-example
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - db_ram
     command: >
-      bash -c 'dockerize -wait tcp://db_ram:3306 -timeout 50s &&
+      bash -c 'dockerize -wait tcp://db_ram:5432 -timeout 50s &&
       python manage.py migrate &&
-      python fuzz.py -atheris_runs=10000'
+      python fuzz.py -atheris_runs=10000 -max_len=20000'
     volumes:
       - ./fuzz_drf_example:/app
 
@@ -19,8 +29,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - db_ram
     command: >
-      bash -c 'python -m coverage run fuzz.py -atheris_runs=1000000 &&
+      bash -c 'dockerize -wait tcp://db_ram:5432 -timeout 50s &&
+      python -m coverage run fuzz.py -atheris_runs=5000 &&
       python -m coverage html &&
       cd htmlcov &&
       python -m http.server 8000'
@@ -35,8 +48,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - db_ram
     command: >
-      bash -c 'python manage.py migrate &&
+      bash -c 'dockerize -wait tcp://db_ram:5432 -timeout 50s &&
+      python manage.py migrate &&
       python manage.py collectstatic &&
       python manage.py runserver 0.0.0.0:8000'
     expose:
@@ -49,11 +65,14 @@ services:
   test:
     container_name: fuzz-drf-example-test
     image: fuzz-drf-example-test
+    depends_on:
+      - db_ram
     build:
       context: .
       dockerfile: Dockerfile
     command: >
-      bash -c 'pytest --cov=. &&
+      bash -c 'dockerize -wait tcp://db_ram:5432 -timeout 50s &&
+      pytest --cov=. &&
       coverage html &&
       cd htmlcov &&
       python -m http.server 8000'
