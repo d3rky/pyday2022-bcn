@@ -7,3 +7,4 @@ schema.yml
 htmlcov/
 __pycache__/
 .pytestcache/
+static/

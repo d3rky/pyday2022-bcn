@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-8+oq7_45xg8p*i%3m%4+_5p8s8uw#4yh%q5&d@24yc%ea7!)s^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -88,10 +88,6 @@ DATABASES = {
     }
 }
 
-STATIC_URL = '/static/'
-STATIC_ROOT = '/static'
-
-
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
@@ -131,6 +127,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = '/static'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field

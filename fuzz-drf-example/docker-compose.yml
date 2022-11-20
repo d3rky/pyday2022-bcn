@@ -1,6 +1,7 @@
 version: '3'
 services:
   db_ram:
+    container_name: postgres-pybcn-2022
     image: postgres:11.5
     tmpfs:
       - /var/lib/postgresql/data

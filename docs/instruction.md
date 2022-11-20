@@ -1,5 +1,10 @@
 # PyDay BCN 2022 Workshop "Friendly fuzzing for your Python SaaS applications" step-by-step instruction
 
+## Page Content
+- [Prerequisites](#prerequisites)
+- [Let's fuzz simple example!](#lets-fuzz-simple-example)
+- [Let's fuzz the Django REST Framework!](#lets-fuzz-the-django-rest-framework)
+
 ## Prerequisites
 For the following workshop be sure, that
 1. You have access to internet :-)
@@ -7,24 +12,23 @@ For the following workshop be sure, that
 1. Prebuild all needed docker images
     1. Go to director `fuzz-simple-example` and run build command for `fuzz` service
         ```
-        cd fuzz-simple-example && docker-compose build fuzz
+        > cd fuzz-simple-example && docker-compose build fuzz
         ```
     1. Go to directory of the second example and run build command for `fuzz` service
         ```
-        cd ../fuzz-drf-example && docker-compose build fuzz
+        > cd ../fuzz-drf-example && docker-compose build fuzz
         ```
 
 ## Let's fuzz simple example!
 
 Let's start with the simple example of the fuzzing using *Atheris* library. Open the source code and go to the folder `fuzz-simple-example`
 ```
-cd fuzz-simple-example
+> cd fuzz-simple-example
 ```
 
 Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most loved editor and let's write the code for the fuzzer there
 
 1. Before writing any code for the fuzzer you need to specify for *Atheris* what code it should track. Since *Atheris* use Code Coverage Feedback to track the quality and mutate the input data you should instrument the code, that you are going to fuzz. Here you have do functions `check_permission` and `do_calc`. The `do_calc` function is an interface function, that you are going to fuzz. Let's allow *Atheris* to instrument these functions. Put the `@atheris.instrument_func` decorator on them.
-
     ```
     @atheris.instrument_func
     def check_permission(permission: str) -> bool:
@@ -39,7 +43,6 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
     ```
 
 1. Now let's write the code to run fuzzing. We have an empty function `run_fuzzing`. Here you'll write the fuzzer code. To allow *Atheris* to generate new input data and run `run_fuzzing` function you should setup and run *Atheris* fuzzing. Add this code to the bottom
-
     ```
     def run_fuzzing(data: bytes):
         pass
@@ -223,4 +226,496 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
 
 ## Let's fuzz the Django REST Framework!
 
-TBA
+But what about the API? Can you use the same technic to write fuzzing tests for your API? The answer is yes! And at the same time is no :-(. Let's dive into this using the example of the simple Django REST Framework
+
+1. For this go and open `fuzz-drf-example` in your editor
+    ```
+    > cd fuzz-drf-example
+    ```
+
+1. Look at code in the `fuzz_drf_example/account/models.py`. Simple account model with two fields: name and permissions. Permissions field is a JSON, with a list of objects, that should contain `key` and `value` keys inside.
+
+1. Look at API code in the `fuzz_drf_example/account/api.py`. It contains the CRUD API for the Account model. It has a validator `_key_value_validator`, that checks fields `key` and `value` are provided for permissions. Also the `create` method is overriden, it includes logic to exclude any additional key from permissions list except required  `key` and `value`.
+
+1. Let's play with the API a little using the DRF browsable API. Run the server using the *Docker Composer*
+    ```
+    > docker-compose build server
+    > docker-compose run --service-ports server
+    [+] Running 1/0
+    ⠿ Container fuzz-drf-example-db_ram-1  Running                                       0.0s
+    2022/11/20 12:41:26 Waiting for: tcp://db_ram:5432
+    2022/11/20 12:41:26 Connected to tcp://db_ram:5432
+    Operations to perform:
+      Apply all migrations: account, admin, auth, contenttypes, sessions
+    Running migrations:
+      No migrations to apply.
+
+    165 static files copied to '/static'.
+    Performing system checks...
+
+    System check identified no issues (0 silenced).
+    November 20, 2022 - 12:41:28
+    Django version 4.1.3, using settings 'fuzz_drf_example.settings'
+    Starting development server at http://0.0.0.0:8000/
+    Quit the server with CONTROL-C.
+    ```
+
+1. Open the browser at `http://0.0.0.0:8000/accounts/` and let's make couple of tests
+    ![Browsable API](./images/browsable-api.png)
+
+1. Let's test straigtforward green scenario and put something valid
+    ```
+    {
+        "name": "Test 1",
+        "permissions": [{"key": "account", "value": "true"}]
+    }
+    ```
+
+    And it passes!
+    ![Browsable API Simple Example](./images/browsable-api-simple-example.png)
+
+1. Ok, let's emulate the missing of the required key
+    ```
+    {
+        "name": "Test 400",
+        "permissions": [{"key": "400"}]
+    }
+    ```
+
+    And response code is 400. Great!
+    ![Browsable API 400 Example](./images/browsable-api-test-400.png)
+
+1. Next try, let's check that additiona fields in `permissions` fields are truncated
+    ```
+    {
+        "name": "Remove",
+        "permissions": [{"key": "remove", "value": "True", "test": "always"}]
+    }
+    ```
+
+    And the response is 201 and it works as expected!
+    ![Browsable API Test Remove](./images/browsable-api-test-remove.png)
+
+1. Well, we are not the Software Developers if we cannot automate it, right? I prepared the same tests. You can find them in the `fuzz_drf_example/tests/test_account.py`. Open it in your editor. Same 3 tests, that you recently passed in DRF Browsable API.
+
+1. Let's check the coverage of the tests. Run the test command
+    ```
+    > docker-compose build test
+    > docker-compose run --service-ports test
+    ```
+
+    And open the browser at `http://0.0.0.0:8000/` and go to the `accounts/api.py` file. Well, quite impressive, isn't it? 100%!
+
+    ![Fuzz DRF Test Coverage](./images/fuzz-drf-test-coverage.png)
+
+    But does it mean that the code doesn't contain bugs? Even if the displayed coverage is collected by branches?
+
+1. For sure, no! Let's now try to fuzz it and see what additional bugs can we found in this code! Open the file `fuzz_drf_example/fuzz.py` in your editor and let's write some code!
+
+1. Here in the file you can see prepared code to run the fuzzer. But I also instrument and configure properly the Django itself
+    ```
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
+
+    # instrumentation of the imports, it will automatically instrument everythin, including
+    # your account application
+    with atheris.instrument_imports():
+        import django
+        # since you are running fuzz.py out of Django, first you need to configure it
+        django.setup()
+    ```
+
+1. The only API, that you are going to fuzz is the `POST` to `/accounts/`. As input body it contains following structure
+    ```
+    {
+        "name": "Test 1",
+        "permissions": [{"key": "account", "value": "true"}]
+    }
+    ```
+
+    To generate `name` property you should do the same steps as in the previous simple example. Write following code in the `run_fuzzing` function
+
+    ```
+    def run_fuzzing(data):
+        dp = atheris.FuzzedDataProvider(data)
+        name = dp.ConsumeUnicodeNoSurrogates(10)
+
+        account_data = {
+            'name': name,
+        }
+    ```
+
+    Let's a little w/a, since DRF for `CharField` doesn't allow to pass null symbols (`\x00`, let's just replace them
+
+    ```
+    def run_fuzzing(data):
+        dp = atheris.FuzzedDataProvider(data)
+        name = dp.ConsumeUnicodeNoSurrogates(10)
+        # replace nulls
+        name = name.replace('\x00', 'a')
+
+        account_data = {
+            'name': name,
+        }
+    ```
+
+1. Now let's deal with `permissions`. You need to generate a list of objects
+    ```
+    def run_fuzzing(data):
+        ...
+        # let's generate up to 5 permissions in the list
+        permissions_length = dp.ConsumeIntInRange(0, 5)
+        permissions = []
+        for _ in range(permissions_length):
+            # generate the key and the value
+            key = dp.ConsumeUnicodeNoSurrogates(10)
+            value = dp.ConsumeUnicodeNoSurrogates(10)
+
+            permission = {
+                'key': key,
+                'value': value,
+            }
+            # add generated permissions
+            permissions.append(permission)
+
+        ...
+        account_data = {
+            'name': name,
+            'permissions': permissions,
+        }
+
+    ```
+
+1. *Atheris* generates different unicode symbols including the unicode dot (`\u0000`). But unfortunatelly, Postgres in the current version doesn't support this symbol if it is included inside the valid JSON field. So to w/a this behavior let's replace it to something meaningful
+    ```
+    def run_fuzzing(data):
+        ...
+        for _ in range(permissions_length):
+            ...
+             # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+            key = key.replace('\u0000', '.')
+            value = value.replace('\u0000', '.')
+            ...
+    ```
+1. You have the generated data, but what how you can pass it into the DRF API from the your python code? The simplest way to do it is to use the test client
+    ```
+    with atheris.instrument_imports():
+        ...
+        from rest_framework.test import APIClient
+        from rest_framework.reverse import reverse
+        ...
+
+    def run_fuzzing(data):
+        client = APIClient()
+        ...
+        response = client.post(reverse('account-list'), data=account_data, format='json')
+
+    ```
+
+1. And 500 will the the exceptions, that your are looking for exceptions during the fuzzing. So let's catch them. Exceptions and 500 error codes
+    ```
+    def run_fuzzing(data):
+        ...
+        try:
+            response = client.post(reverse('account-list'), data=account_data, format='json')
+            if response.status_code == 500:
+                print(f"500 returned for account_data {account_data} and answer is {response.content}")
+        except Exception as e:
+            print(f"Exception catched: {e}. With account_data {account_data}")
+
+    ```
+
+1. Let's run the fuzz test and see what it can find for you. Here is the whole code of the `fuzz.py` file
+    ```
+    import atheris
+    import os
+    import sys
+
+
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
+
+    # instrumentation of the imports, it will automatically instrument everythin, including
+    # your account application
+    with atheris.instrument_imports():
+        import django
+        # since you are running fuzz.py out of Django, first you need to configure it
+        django.setup()
+
+        from rest_framework.test import APIClient
+        from rest_framework.reverse import reverse
+
+
+    def run_fuzzing(data):
+        client = APIClient()
+
+        dp = atheris.FuzzedDataProvider(data)
+        name = dp.ConsumeUnicodeNoSurrogates(10)
+        # replace nulls
+        name = name.replace('\x00', 'a')
+
+        permissions_length = dp.ConsumeIntInRange(0, 5)
+        permissions = []
+        for _ in range(permissions_length):
+            # generate the key and the value
+            key = dp.ConsumeUnicodeNoSurrogates(10)
+            value = dp.ConsumeUnicodeNoSurrogates(10)
+             # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+            key = key.replace('\u0000', '.')
+            value = value.replace('\u0000', '.')
+
+            permission = {
+                'key': key,
+                'value': value,
+            }
+            # add generated permissions
+            permissions.append(permission)
+
+        account_data = {
+            'name': name,
+            'permissions': permissions,
+        }
+
+        try:
+            response = client.post(reverse('account-list'), data=account_data, format='json')
+            if response.status_code == 500:
+                print(f"500 returned for account_data {account_data} and answer is {response.content}")
+        except Exception as e:
+            print(f"Exception catched: {e}. With account_data {account_data}")
+
+
+    # Setup and run Atheris fuzzing
+    atheris.Setup(sys.argv, run_fuzzing)
+    atheris.Fuzz()
+    ```
+
+    Run the fuzzing tests
+    ```
+    > docker-compose build fuzz
+    > docker-compose run --service-ports fuzz
+    ```
+
+1. It found nothing :-(
+    ```
+    INFO: Running with entropic power schedule (0xFF, 100).
+    INFO: Seed: 1727731145
+    INFO: A corpus is not provided, starting from an empty corpus
+    #2  INITED cov: 1319 ft: 1319 corp: 1/1b exec/s: 0 rss: 75Mb
+    #3  NEW    cov: 1329 ft: 1329 corp: 2/2b lim: 4 exec/s: 0 rss: 75Mb L: 1/1 MS: 1 CopyPart-
+    #6  NEW    cov: 1329 ft: 1335 corp: 3/4b lim: 4 exec/s: 0 rss: 75Mb L: 2/2 MS: 3 CrossOver-CrossOver-ChangeByte-
+    #17 NEW    cov: 1329 ft: 1341 corp: 4/5b lim: 4 exec/s: 0 rss: 76Mb L: 1/2 MS: 1 ChangeBit-
+    #22 NEW    cov: 1340 ft: 1363 corp: 5/9b lim: 4 exec/s: 0 rss: 76Mb L: 4/4 MS: 5 CopyPart-InsertByte-CrossOver-CopyPart-CopyPart-
+    #40 REDUCE cov: 1340 ft: 1363 corp: 5/8b lim: 4 exec/s: 0 rss: 76Mb L: 1/4 MS: 3 ChangeASCIIInt-EraseBytes-ChangeByte-
+    #62 NEW    cov: 1340 ft: 1369 corp: 6/12b lim: 4 exec/s: 0 rss: 76Mb L: 4/4 MS: 2 ChangeBit-ChangeBit-
+    #66 REDUCE cov: 1340 ft: 1369 corp: 6/11b lim: 4 exec/s: 0 rss: 76Mb L: 3/4 MS: 4 ChangeBit-ChangeBit-EraseBytes-CrossOver-
+    #251    NEW    cov: 1340 ft: 1375 corp: 7/14b lim: 4 exec/s: 0 rss: 76Mb L: 3/4 MS: 5 ChangeByte-CrossOver-ShuffleBytes-CopyPart-EraseBytes-
+    #344    REDUCE cov: 1340 ft: 1375 corp: 7/13b lim: 4 exec/s: 344 rss: 76Mb L: 2/4 MS: 3 ChangeByte-ChangeBit-EraseBytes-
+    #514    REDUCE cov: 1340 ft: 1376 corp: 8/16b lim: 4 exec/s: 514 rss: 77Mb L: 3/4 MS: 5 CrossOver-ChangeBinInt-ChangeByte-CopyPart-ChangeBit-
+    #546    REDUCE cov: 1340 ft: 1376 corp: 8/14b lim: 4 exec/s: 546 rss: 77Mb L: 1/4 MS: 2 CrossOver-CopyPart-
+    #1006   REDUCE cov: 1340 ft: 1382 corp: 9/22b lim: 8 exec/s: 503 rss: 78Mb L: 8/8 MS: 5 ChangeByte-InsertRepeatedBytes-CopyPart-ChangeBinInt-ChangeBinInt-
+    #1024   pulse  cov: 1340 ft: 1382 corp: 9/22b lim: 8 exec/s: 512 rss: 78Mb
+    #2048   pulse  cov: 1340 ft: 1382 corp: 9/22b lim: 17 exec/s: 409 rss: 79Mb
+    #3846   REDUCE cov: 1340 ft: 1382 corp: 9/21b lim: 33 exec/s: 427 rss: 80Mb L: 3/8 MS: 5 CrossOver-EraseBytes-ChangeByte-ShuffleBytes-InsertByte-
+    #4096   pulse  cov: 1340 ft: 1382 corp: 9/21b lim: 33 exec/s: 455 rss: 80Mb
+    #8192   pulse  cov: 1340 ft: 1382 corp: 9/21b lim: 74 exec/s: 431 rss: 84Mb
+    #9526   NEW    cov: 1340 ft: 1388 corp: 10/28b lim: 86 exec/s: 433 rss: 85Mb L: 7/8 MS: 5 InsertByte-InsertByte-ChangeBinInt-CMP-CMP- DE: "\377\377"-"\000\000"-
+    Done 10000 in 24 second(s)
+    ```
+
+1. Was it exactly that you expected? I think no. Well, you found the bug in Postgres with unicode dot symbol. Well, but that's the Postgres. Let's take a look at our code one more time and improve the fuzzing test. The goal of the fuzzer to generate wrong, incorrect and strange data. Open the `fuzz_drf_example/account/models.py` file. See, that the name has limitation of 10 symbols. What if fuzzer in half of attempts tried to generate the more symbols?
+
+1. In file `fuzz_drf_example/fuzz.py` replace the number of generated unicode strings for name property from 10 to 20.
+    ```
+    def run_fuzzing(data):
+        ...
+        # replace from 10 --> 20
+        name = dp.ConsumeUnicodeNoSurrogates(20)
+
+    ```
+
+1. Run the fuzzing again
+    ```
+    > docker-compose build fuzz
+    > docker-compose run --service-ports fuzz
+    ```
+
+1. Exception catched: value too long for type character varying(10)! But it should be the 400. It is invalid data and your code should properly handle it, but it doesn't. How to fix it?
+
+1. The problem is that DRF `ModelSerializer` in case of overriden the field doesn't inherite limitations of the original field. To fix it - remove the name and use the `extra_kwargs`, that will add additional limitations to the inherited limitations from the model. Open the `fuzz_drf_example/account/api.py` and fix the serializer
+    ```
+    ...
+    class AccountSerializer(serializers.ModelSerializer):
+        # remove or comment this line
+        # name = serializers.CharField(allow_blank=True)
+        ...
+        class Meta:
+            ...
+            # add extra_kwargs instead
+            extra_kwargs = {
+                'name': {'allow_blank': True},
+            }
+    ```
+
+1. Let's run fuzzing again to be sure, that bug is fixed
+    ```
+    > docker-compose build fuzz
+    > docker-compose run --service-ports fuzz
+    ```
+
+    Only lot's of `Bad Request` logged. But that's fine, it is a proper 400 when the limit is more then 10 for the `name` field
+
+1. What other mutations you can write using the *Atheris*? Since the user controls the input data it can pass as a JSON whatever he wants. Let's imagine that he passes the string instead of the JSON object in the list of permissions? Let's see what will happen. Open the `fuzz_drf_example/fuzz.py` file and modify the `run_fuzzing` function
+    ```
+    def run_fuzzing(data):
+        ...
+        for _ in range(permissions_length):
+            # in 50% of cases let's replace the permission with the string
+            modify_permission = dp.ConsumeBool()
+            if modify_permission:
+                permission = dp.ConsumeUnicodeNoSurrogates(10)
+                # do not forget about the Postgres bug
+                permission = permission.replace('\u0000', '.')
+            else:
+                # same code as before
+                key = dp.ConsumeUnicodeNoSurrogates(10)
+                value = dp.ConsumeUnicodeNoSurrogates(10)
+                # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+                key = key.replace('\u0000', '.')
+                value = value.replace('\u0000', '.')
+                permission = {
+                    'key': key,
+                    'value': value,
+                }
+            # add generated permissions
+            permissions.add(permission)
+        ...
+
+    ```
+
+1. Let's run fuzzing again and here is the full `fuzz.py` file content
+    ```
+    import atheris
+    import os
+    import sys
+
+
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
+
+    # instrumentation of the imports, it will automatically instrument everythin, including
+    # your account application
+    with atheris.instrument_imports():
+        import django
+        # since you are running fuzz.py out of Django, first you need to configure it
+        django.setup()
+
+        from rest_framework.test import APIClient
+        from rest_framework.reverse import reverse
+
+
+    def run_fuzzing(data):
+        client = APIClient()
+
+        dp = atheris.FuzzedDataProvider(data)
+        name = dp.ConsumeUnicodeNoSurrogates(20)
+        # replace nulls
+        name = name.replace('\x00', 'a')
+
+        permissions_length = dp.ConsumeIntInRange(0, 5)
+        permissions = []
+        for _ in range(permissions_length):
+            # in 50% of cases let's replace the permission with the string
+            modify_permission = dp.ConsumeBool()
+            if modify_permission:
+                permission = dp.ConsumeUnicodeNoSurrogates(10)
+                # do not forget about the Postgres bug
+                permission = permission.replace('\u0000', '.')
+            else:
+                # same code as before
+                key = dp.ConsumeUnicodeNoSurrogates(10)
+                value = dp.ConsumeUnicodeNoSurrogates(10)
+                # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+                key = key.replace('\u0000', '.')
+                value = value.replace('\u0000', '.')
+                permission = {
+                    'key': key,
+                    'value': value,
+                }
+            # add generated permissions
+            permissions.add(permission)
+        account_data = {
+            'name': name,
+            'permissions': permissions,
+        }
+
+        try:
+            response = client.post(reverse('account-list'), data=account_data, format='json')
+            if response.status_code == 500:
+                print(f"500 returned for account_data {account_data} and answer is {response.content}")
+        except Exception as e:
+            print(f"Exception catched: {e}. With account_data {account_data}")
+
+
+    # Setup and run Atheris fuzzing
+    atheris.Setup(sys.argv, run_fuzzing)
+    atheris.Fuzz()
+    ```
+
+    Run fuzzing:
+    ```
+    > docker-compose build fuzz
+    > docker-compose run --service-ports fuzz
+    ```
+
+    One more exception!
+    ```
+    Internal Server Error: /accounts/
+    Traceback (most recent call last):
+      File "/usr/local/lib/python3.10/site-packages/django/core/handlers/exception.py", line 58, in inner
+        return response
+      File "/usr/local/lib/python3.10/site-packages/django/core/handlers/base.py", line 198, in _get_response
+        except Exception as e:
+      File "/usr/local/lib/python3.10/site-packages/django/views/decorators/csrf.py", line -1, in wrapped_view
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/viewsets.py", line 125, in view
+        return self.dispatch(request, *args, **kwargs)
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/views.py", line 509, in dispatch
+        response = self.handle_exception(exc)
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/views.py", line 469, in handle_exception
+        self.raise_uncaught_exception(exc)
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+        raise exc
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/views.py", line 506, in dispatch
+        response = handler(request, *args, **kwargs)
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/mixins.py", line 18, in create
+        serializer.is_valid(raise_exception=True)
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/serializers.py", line 228, in is_valid
+        except ValidationError as exc:
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/serializers.py", line 427, in run_validation
+        try:
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/serializers.py", line 484, in to_internal_value
+        if validate_method is not None:
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/fields.py", line 549, in run_validation
+        return value
+      File "/usr/local/lib/python3.10/site-packages/rest_framework/fields.py", line 563, in run_validators
+        except ValidationError as exc:
+      File "/app/account/api.py", line 10, in _key_value_validator
+        if len({'key', 'value'} - permission.keys()):
+    AttributeError: 'str' object has no attribute 'keys'
+    ```
+
+1. The reason is that the validation function `_key_value_validator` in file `fuzz_drf_example/account/api.py` works with unvalidated data. And it doesn't check, that the structure is provided in the correct way. Let's fix it!
+    ```
+    def _key_value_validator(value):
+        for permission in value:
+            if not isinstance(permission, dict):
+                raise ValidationError("Permission should be a JSON object")
+            elif len({'key', 'value'} - permission.keys()):
+                raise ValidationError("Permissions should contain 'key', 'value' fields")
+    ```
+
+1. And run fuzzing one more time
+    ```
+    > docker-compose build fuzz
+    > docker-compose run --service-ports fuzz
+    ```
+
+    Again lot's of `Bad Request` but no more exceptions.
+
+1. And that's all folks! You just fuzz the python code and DRF API!

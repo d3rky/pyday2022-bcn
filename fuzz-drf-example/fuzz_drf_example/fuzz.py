@@ -5,19 +5,21 @@ import sys
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
 
-
+# instrumentation of the imports, it will automatically instrument everythin, including
+# your account application
 with atheris.instrument_imports():
     import django
-
+    # since you are running fuzz.py out of Django, first you need to configure it
     django.setup()
 
 
-def fuzz(data):
+def run_fuzzing(data):
     """
     Write here you fuzzing code
     """
     pass
 
 
-atheris.Setup(sys.argv, fuzz)
+# Setup and run Atheris fuzzing
+atheris.Setup(sys.argv, run_fuzzing)
 atheris.Fuzz()
