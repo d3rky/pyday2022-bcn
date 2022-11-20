@@ -1,5 +1,9 @@
 db.*
 *.pyc
 .coverage
+schema.yml
+.DS_Store
+
 htmlcov/
 __pycache__/
+.pytestcache/

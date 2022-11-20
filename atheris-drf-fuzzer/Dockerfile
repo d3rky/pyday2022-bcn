@@ -7,6 +7,6 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
-RUN pip3 install Django==4.1.* djangorestframework==3.14.* coverage==6.5.* pytest==7.1.* pytest-django==4.5.* pytest-cov==4.0.* psycopg2-binary
+RUN pip3 install Django==4.1.* djangorestframework==3.14.* coverage==6.5.* pytest==7.1.* pytest-django==4.5.* pytest-cov==4.0.* psycopg2-binary uritemplate==4.1.1 PyYAML==6.0
 
 CMD ["python3"]

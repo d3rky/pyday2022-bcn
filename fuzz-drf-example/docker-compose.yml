@@ -80,3 +80,16 @@ services:
       - "8000:8000"
     volumes:
       - ./fuzz_drf_example:/app
+
+  schema:
+    container_name: fuzz-drf-example
+    image: fuzz-drf-example
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db_ram
+    command: >
+      bash -c 'python manage.py generateschema > schema.yml'
+    volumes:
+      - ./fuzz_drf_example:/app
