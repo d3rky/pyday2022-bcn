@@ -2,33 +2,33 @@
 
 ## Page Content
 - [Prerequisites](#prerequisites)
-- [Let's fuzz simple example!](#lets-fuzz-simple-example)
+- [Let's fuzz a simple example!](#lets-fuzz-a-simple-example)
 - [Let's fuzz the Django REST Framework!](#lets-fuzz-the-django-rest-framework)
 
 ## Prerequisites
 For the following workshop be sure, that
-1. You have access to internet :-)
+1. You have access to the internet :-)
 1. *Docker* and *Docker Compose* are installed on your laptop
 1. Prebuild all needed docker images
-    1. Go to director `fuzz-simple-example` and run build command for `fuzz` service
+    1. Go to director `fuzz-simple-example` and run the build command for `fuzz` service
         ```
         > cd fuzz-simple-example && docker-compose build fuzz
         ```
-    1. Go to directory of the second example and run build command for `fuzz` service
+    1. Go to the directory of the second example and run the build command for `fuzz` service
         ```
         > cd ../fuzz-drf-example && docker-compose build fuzz
         ```
 
-## Let's fuzz simple example!
+## Let's fuzz a simple example!
 
-Let's start with the simple example of the fuzzing using *Atheris* library. Open the source code and go to the folder `fuzz-simple-example`
+Let's start with the simple example of fuzzing using *Atheris* library. Open the source code and go to the folder `fuzz-simple-example`
 ```
 > cd fuzz-simple-example
 ```
 
 Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most loved editor and let's write the code for the fuzzer there
 
-1. Before writing any code for the fuzzer you need to specify for *Atheris* what code it should track. Since *Atheris* use Code Coverage Feedback to track the quality and mutate the input data you should instrument the code, that you are going to fuzz. Here you have do functions `check_permission` and `do_calc`. The `do_calc` function is an interface function, that you are going to fuzz. Let's allow *Atheris* to instrument these functions. Put the `@atheris.instrument_func` decorator on them.
+1. Before writing any code for the fuzzer you need to specify for *Atheris* what code it should track. Since *Atheris* use Code Coverage Feedback to track the quality and mutate the input data you should instrument the code, that you are going to fuzz. Here you have two functions `check_permission` and `do_calc`. The `do_calc` function is an interface function, that you are going to fuzz. Let's allow *Atheris* to instrument these functions. Put the `@atheris.instrument_func` decorator on them.
     ```
     @atheris.instrument_func
     def check_permission(permission: str) -> bool:
@@ -42,7 +42,7 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
         ...
     ```
 
-1. Now let's write the code to run fuzzing. We have an empty function `run_fuzzing`. Here you'll write the fuzzer code. To allow *Atheris* to generate new input data and run `run_fuzzing` function you should setup and run *Atheris* fuzzing. Add this code to the bottom
+1. Now let's write the code to run fuzzing. We have an empty function `run_fuzzing`. Here you'll write the fuzzer code. To allow *Atheris* to generate new input data and run `run_fuzzing` function you should set up and run *Atheris* fuzzing. Add this code to the bottom
     ```
     def run_fuzzing(data: bytes):
         pass
@@ -51,7 +51,7 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
     atheris.Fuzz()
     ```
 
-1. Let's run and check what do you have now
+1. Let's run and check what you have now
     ```
     > docker-compose build fuzz
     > docker-compose run --service-ports fuzz
@@ -74,23 +74,23 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
     Done 100000 in 0 second(s)
     ```
 
-    Well, you see that *Atheris* found nothing insteresting. And that's true - you don't run the instrumented functions! Let's do it!
+    Well, you see that *Atheris* found nothing interesting. And that's true - you don't run the instrumented functions! Let's do it!
 
-1. To run the fuzzed functions with data you have to generate the samples of data. Yes, you have a mutated bytes as `data` parameter in `run_fuzzing` function. But it is just a bytes. And to make fuzzing effectivly you need generate something meaningful to your `do_calc` function. Function `do_calc` has a string as an input. So let's generate a sample strings from the input mutated bytes. To do it *Atheris* provides the special `FuzzedDataProvider` object. It has a lot of built-in methods to generate ints, strings, bools from the provided amount of bytes. Let's define it inside the `run_fuzzing` function
+1. To run the fuzzed functions with data you have to generate the samples of data. Yes, you have mutated bytes as `data` parameter in `run_fuzzing` function. But it is just bytes. And to make fuzzing effective you need to generate something meaningful to your `do_calc` function. Function `do_calc` has a string as an input. So let's generate a sample string from the input mutated bytes. To do it *Atheris* provides the special `FuzzedDataProvider` object. It has a lot of built-in methods to generate ints, strings, and bools from the provided amount of bytes. Let's define it inside the `run_fuzzing` function
     ```
     def run_fuzzin(data: bytes):
         dp = atheris.FuzzedDataProvider(data)
         ...
     ```
 
-1. Now let's generate the unicode string for the input of the `do_calc` function
+1. Now let's generate the Unicode string for the input of the `do_calc` function
     ```
      def run_fuzzin(data: bytes):
         dp = atheris.FuzzedDataProvider(data)
         permission = dp.ConsumeUnicodeNoSurrogates(???)
     ```
 
-1. `ConsumeUnicodeNoSurrogates` has a string length as an input parameter. What length you should provide there? Good question... Well, let's also make it choosen by *Atheris*
+1. `ConsumeUnicodeNoSurrogates` has a string length as an input parameter. What length you should provide there? Good question... Well, let's also make it chosen by *Atheris*
     ```
     def run_fuzzin(data: bytes):
         dp = atheris.FuzzedDataProvider(data)
@@ -99,7 +99,7 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
         permission = dp.ConsumeUnicodeNoSurrogates(permission_legth)
     ```
 
-    Number of bytes do not guarantee that the final unicode will contain the exact number. It guarantees that it will be no more than provided number
+    The number of bytes does not guarantee that the final Unicode will contain the exact number. It guarantees that it will be no more than provided number
 
 1. And final step - invoke the `do_calc` function
     ```
@@ -133,7 +133,7 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
     Done 100000 in 0 second(s)
     ```
 
-1. Perfect! It works. But what are results of the fuzzing? Can it find some erros in the code? The answer is - yes! Let's emulate that you have an unhandled exception in your code. To do it - modify the `elif permission == 'check_permission':` branch in function `check_permission` to raise the exception
+1. Perfect! It works. But what are the results of the fuzzing? Can it find some errors in the code? The answer is - yes! Let's emulate that you have an unhandled exception in your code. To do it - modify the `elif permission == 'check_permission':` branch in function `check_permission` to raise the exception
     ```
     @atheris.instrument_func
     def check_permission(permission: str) -> bool:
@@ -182,7 +182,7 @@ Our fuzzing and fuzzed code are in the same file `fuzz.py`. Open it in your most
     Base64: O2NoZWNrX3Blcm1pc3Npb247
     ```
 
-1. Also you can track the coverage during the *Atheris* execution. Return back the code with exception in the `check_permission` function
+1. Also you can track the coverage during the *Atheris* execution. Return the code with an exception in the `check_permission` function
     ```
     @atheris.instrument_func
     def check_permission(permission: str) -> bool:
@@ -233,9 +233,9 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     > cd fuzz-drf-example
     ```
 
-1. Look at code in the `fuzz_drf_example/account/models.py`. Simple account model with two fields: name and permissions. Permissions field is a JSON, with a list of objects, that should contain `key` and `value` keys inside.
+1. Look at the code in the `fuzz_drf_example/account/models.py`. Simple account model with two fields: name and permissions. The permissions field is a JSON, with a list of objects, that should contain `key` and `value` keys inside.
 
-1. Look at API code in the `fuzz_drf_example/account/api.py`. It contains the CRUD API for the Account model. It has a validator `_key_value_validator`, that checks fields `key` and `value` are provided for permissions. Also the `create` method is overriden, it includes logic to exclude any additional key from permissions list except required  `key` and `value`.
+1. Look at API code in the `fuzz_drf_example/account/api.py`. It contains the CRUD API for the Account model. It has a validator `_key_value_validator`, that checks fields `key` and `value` are provided for permissions. Also, the `create` method is overridden, it includes logic to exclude any additional key from the permissions list except the required  `key` and `value`.
 
 1. Let's play with the API a little using the DRF browsable API. Run the server using the *Docker Composer*
     ```
@@ -263,7 +263,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
 1. Open the browser at `http://0.0.0.0:8000/accounts/` and let's make couple of tests
     ![Browsable API](./images/browsable-api.png)
 
-1. Let's test straigtforward green scenario and put something valid
+1. Let's test the straightforward green scenario and put something valid
     ```
     {
         "name": "Test 1",
@@ -285,7 +285,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     And response code is 400. Great!
     ![Browsable API 400 Example](./images/browsable-api-test-400.png)
 
-1. Next try, let's check that additiona fields in `permissions` fields are truncated
+1. Next try, let's check that additional fields in the `permissions` fields are truncated
     ```
     {
         "name": "Remove",
@@ -310,13 +310,13 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
 
     But does it mean that the code doesn't contain bugs? Even if the displayed coverage is collected by branches?
 
-1. For sure, no! Let's now try to fuzz it and see what additional bugs can we found in this code! Open the file `fuzz_drf_example/fuzz.py` in your editor and let's write some code!
+1. For sure, no! Let's now try to fuzz it and see what additional bugs can you find in this code! Open the file `fuzz_drf_example/fuzz.py` in your editor and let's write some code!
 
-1. Here in the file you can see prepared code to run the fuzzer. But I also instrument and configure properly the Django itself
+1. Here in the file you can see the prepared code to run the fuzzer. But I also instrument and configure properly the Django itself
     ```
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
 
-    # instrumentation of the imports, it will automatically instrument everythin, including
+    # instrumentation of the imports, it will automatically instrument everything, including
     # your account application
     with atheris.instrument_imports():
         import django
@@ -332,7 +332,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     }
     ```
 
-    To generate `name` property you should do the same steps as in the previous simple example. Write following code in the `run_fuzzing` function
+    To generate the `name` property you should do the same steps as in the previous simple example. Write the following code in the `run_fuzzing` function
 
     ```
     def run_fuzzing(data):
@@ -385,18 +385,18 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
 
     ```
 
-1. *Atheris* generates different unicode symbols including the unicode dot (`\u0000`). But unfortunatelly, Postgres in the current version doesn't support this symbol if it is included inside the valid JSON field. So to w/a this behavior let's replace it to something meaningful
+1. *Atheris* generates different Unicode symbols including the Unicode dot (`\u0000`). But unfortunately, Postgres in the current version doesn't support this symbol if it is included inside the valid JSON field. So to w/a, this behavior let's replace it with something meaningful
     ```
     def run_fuzzing(data):
         ...
         for _ in range(permissions_length):
             ...
-             # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+             # w/a for Postgres bug, it doesn't allow Unicode dot in the JSONB fields
             key = key.replace('\u0000', '.')
             value = value.replace('\u0000', '.')
             ...
     ```
-1. You have the generated data, but what how you can pass it into the DRF API from the your python code? The simplest way to do it is to use the test client
+1. You have the generated data, but how you can pass it into the DRF API from your python code? The simplest way to do it is to use the test client
     ```
     with atheris.instrument_imports():
         ...
@@ -411,7 +411,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
 
     ```
 
-1. And 500 will the the exceptions, that your are looking for exceptions during the fuzzing. So let's catch them. Exceptions and 500 error codes
+1. And 500 will the exceptions, that you are looking for exceptions during the fuzzing. So let's catch them. Exceptions and 500 error codes
     ```
     def run_fuzzing(data):
         ...
@@ -433,7 +433,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
 
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
 
-    # instrumentation of the imports, it will automatically instrument everythin, including
+    # instrumentation of the imports, it will automatically instrument everything, including
     # your account application
     with atheris.instrument_imports():
         import django
@@ -458,7 +458,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
             # generate the key and the value
             key = dp.ConsumeUnicodeNoSurrogates(10)
             value = dp.ConsumeUnicodeNoSurrogates(10)
-             # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+             # w/a for Postgres bug, it doesn't allow Unicode dot in the JSONB fields
             key = key.replace('\u0000', '.')
             value = value.replace('\u0000', '.')
 
@@ -479,7 +479,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
             if response.status_code == 500:
                 print(f"500 returned for account_data {account_data} and answer is {response.content}")
         except Exception as e:
-            print(f"Exception catched: {e}. With account_data {account_data}")
+            print(f"Exception caught: {e}. With account_data {account_data}")
 
 
     # Setup and run Atheris fuzzing
@@ -520,9 +520,9 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     Done 10000 in 24 second(s)
     ```
 
-1. Was it exactly that you expected? I think no. Well, you found the bug in Postgres with unicode dot symbol. Well, but that's the Postgres. Let's take a look at our code one more time and improve the fuzzing test. The goal of the fuzzer to generate wrong, incorrect and strange data. Open the `fuzz_drf_example/account/models.py` file. See, that the name has limitation of 10 symbols. What if fuzzer in half of attempts tried to generate the more symbols?
+1. Was it exactly what you expected? I think not. Well, you found the bug in Postgres with the Unicode dot symbol. Well, but that's the Postgres. Let's take a look at our code one more time and improve the fuzzing test. The goal of the fuzzer is to generate wrong, incorrect, and abnormal data. Open the `fuzz_drf_example/account/models.py` file. See, that the name has the limitation of 10 symbols. What if fuzzer in half of the attempts tried to generate more symbols?
 
-1. In file `fuzz_drf_example/fuzz.py` replace the number of generated unicode strings for name property from 10 to 20.
+1. In file `fuzz_drf_example/fuzz.py` replace the number of generated Unicode strings for the name property from 10 to 20.
     ```
     def run_fuzzing(data):
         ...
@@ -537,13 +537,13 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     > docker-compose run --service-ports fuzz
     ```
 
-1. Exception catched: value too long for type character varying(10)! But it should be the 400. It is invalid data and your code should properly handle it, but it doesn't. How to fix it?
+1. Exception caught: value too long for type character varying(10)! But it should be the 400. It is invalid data and your code should properly handle it, but it doesn't. How to fix it?
 
-1. The problem is that DRF `ModelSerializer` in case of overriden the field doesn't inherite limitations of the original field. To fix it - remove the name and use the `extra_kwargs`, that will add additional limitations to the inherited limitations from the model. Open the `fuzz_drf_example/account/api.py` and fix the serializer
+1. The problem is that DRF `ModelSerializer` in case of overridden the field doesn't inherit limitations of the original field. To fix it - remove the name and use the `extra_kwargs`, which will add additional limitations to the inherited limitations from the model. Open the `fuzz_drf_example/account/api.py` and fix the serializer
     ```
     ...
     class AccountSerializer(serializers.ModelSerializer):
-        # remove or comment this line
+        # remove or comment on this line
         # name = serializers.CharField(allow_blank=True)
         ...
         class Meta:
@@ -560,9 +560,9 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     > docker-compose run --service-ports fuzz
     ```
 
-    Only lot's of `Bad Request` logged. But that's fine, it is a proper 400 when the limit is more then 10 for the `name` field
+    Only lot's of `Bad Request` logged. But that's fine, it is a proper 400 when the limit is more than 10 for the `name` field
 
-1. What other mutations you can write using the *Atheris*? Since the user controls the input data it can pass as a JSON whatever he wants. Let's imagine that he passes the string instead of the JSON object in the list of permissions? Let's see what will happen. Open the `fuzz_drf_example/fuzz.py` file and modify the `run_fuzzing` function
+1. What other mutations you can write using the *Atheris*? Since the user controls the input data it can pass as a JSON whatever he wants. Let's imagine that he passes the string instead of the JSON object in the list of permissions. Let's see what will happen. Open the `fuzz_drf_example/fuzz.py` file and modify the `run_fuzzing` function
     ```
     def run_fuzzing(data):
         ...
@@ -577,7 +577,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
                 # same code as before
                 key = dp.ConsumeUnicodeNoSurrogates(10)
                 value = dp.ConsumeUnicodeNoSurrogates(10)
-                # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+                # w/a for Postgres bug, it doesn't allow Unicode dot in the JSONB fields
                 key = key.replace('\u0000', '.')
                 value = value.replace('\u0000', '.')
                 permission = {
@@ -599,7 +599,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
 
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
 
-    # instrumentation of the imports, it will automatically instrument everythin, including
+    # instrumentation of the imports, it will automatically instrument everything, including
     # your account application
     with atheris.instrument_imports():
         import django
@@ -631,7 +631,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
                 # same code as before
                 key = dp.ConsumeUnicodeNoSurrogates(10)
                 value = dp.ConsumeUnicodeNoSurrogates(10)
-                # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+                # w/a for Postgres bug, it doesn't allow Unicode dot in the JSONB fields
                 key = key.replace('\u0000', '.')
                 value = value.replace('\u0000', '.')
                 permission = {
@@ -650,7 +650,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
             if response.status_code == 500:
                 print(f"500 returned for account_data {account_data} and answer is {response.content}")
         except Exception as e:
-            print(f"Exception catched: {e}. With account_data {account_data}")
+            print(f"Exception caught: {e}. With account_data {account_data}")
 
 
     # Setup and run Atheris fuzzing
@@ -700,7 +700,7 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     AttributeError: 'str' object has no attribute 'keys'
     ```
 
-1. The reason is that the validation function `_key_value_validator` in file `fuzz_drf_example/account/api.py` works with unvalidated data. And it doesn't check, that the structure is provided in the correct way. Let's fix it!
+1. The reason is that the validation function `_key_value_validator` in file `fuzz_drf_example/account/api.py` works with unvalidated data. And it doesn't check, that the structure is provided correctly. Let's fix it!
     ```
     def _key_value_validator(value):
         for permission in value:

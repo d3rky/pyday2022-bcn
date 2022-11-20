@@ -5,7 +5,7 @@ import sys
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fuzz_drf_example.settings')
 
-# instrumentation of the imports, it will automatically instrument everythin, including
+# instrumentation of the imports, it will automatically instrument everything, including
 # your account application
 with atheris.instrument_imports():
     import django
