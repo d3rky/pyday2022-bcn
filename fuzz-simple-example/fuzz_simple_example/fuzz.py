@@ -13,7 +13,7 @@ def check_permission(permission: str) -> bool:
     return True
 
 
-def do_calc(permission):
+def do_calc(permission: str) -> int:
     is_available = check_permission(permission)
 
     if is_available:
@@ -22,7 +22,7 @@ def do_calc(permission):
         return -1
 
 
-def run_fuzzing(data):
+def run_fuzzing(data: bytes):
     """
     Put here your fuzzing code
     """
