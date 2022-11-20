@@ -37,7 +37,7 @@ def run_fuzzing(data):
             # same code as before
             key = dp.ConsumeUnicodeNoSurrogates(10)
             value = dp.ConsumeUnicodeNoSurrogates(10)
-            # w/a for postgres bug, it doesn't allow unicode dot in the JSONB fields
+            # w/a for Postgres bug, it doesn't allow Unicode dot in the JSONB fields
             key = key.replace('\u0000', '.')
             value = value.replace('\u0000', '.')
             permission = {
@@ -57,7 +57,7 @@ def run_fuzzing(data):
         if response.status_code == 500:
             print(f"500 returned for account_data {account_data} and answer is {response.content}")
     except Exception as e:
-        print(f"Exception catched: {e}. With account_data {account_data}")
+        print(f"Exception caught: {e}. With account_data {account_data}")
 
 
 # Setup and run Atheris fuzzing
