@@ -8,7 +8,7 @@ from account.models import Account
 def _key_value_validator(value):
     for permission in value:
         if not isinstance(permission, dict):
-            raise ValidationError("Permissions should be dict")
+            raise ValidationError("Permission should be a JSON object")
         elif len({'key', 'value'} - permission.keys()):
             raise ValidationError("Permissions should contain 'key', 'value' fields")
 
