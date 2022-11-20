@@ -10,7 +10,7 @@ For the following workshop be sure, that
 1. You have access to the internet :-)
 1. *Docker* and *Docker Compose* are installed on your laptop
 1. Prebuild all needed docker images
-    1. Go to director `fuzz-simple-example` and run the build command for `fuzz` service
+    1. Go to the directory `fuzz-simple-example` and run the build command for `fuzz` service
         ```
         > cd fuzz-simple-example && docker-compose build fuzz
         ```
