@@ -17,6 +17,7 @@ For the following workshop be sure, that
     1. Go to the directory of the second example and run the build command for `fuzz` service
         ```
         > cd ../fuzz-drf-example && docker-compose build fuzz
+        > docker-compose pull db_ram
         ```
 
 ## Let's fuzz a simple example!
@@ -719,17 +720,3 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     Again lot's of `Bad Request` but no more exceptions.
 
 1. And that's all folks! You just fuzz the python code and DRF API!
-
-## [BONUS] Let's fuzz the Django REST Framework with the RESTler (statefull-fuzzing)!
-1. Run 
-
-2. git clone git@github.com:microsoft/restler-fuzzer.git
-   1. cd restler-fuzzer
-   2. docker built -t restler-fuzz .
-   3. сd ../fuzz-drf-example/.
-   4. docker run -t -i -v $(pwd)/.:/tmp restler-fuzz /bin/sh
-   5. 
-   6. cd /RESTler/restler
-      1. ./Restler compile --api_spec /tmp/schema.yml
-      2. ./Restler fuzz --grammar_file Compile/grammar.py --dictionary_file Compile/dict.json --settings Compile/engine_settings.json --no_ssl --host <your-ip-local-address> --target_port 8000
-3. 
