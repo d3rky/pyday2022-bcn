@@ -1,7 +1,7 @@
 version: '3'
 services:
   db_ram:
-    container_name: postgres-pybcn-2022
+    container_name: postgres-pybcn-2022-drf
     image: postgres:11.5
     tmpfs:
       - /var/lib/postgresql/data
@@ -10,7 +10,7 @@ services:
       POSTGRES_DB: fuzz
 
   fuzz:
-    container_name: fuzz-drf-example
+    container_name: fuzz-drf-example-fuzz
     image: fuzz-drf-example
     build:
       context: .
@@ -25,7 +25,7 @@ services:
       - ./fuzz_drf_example:/app
 
   coverage:
-    container_name: fuzz-drf-example
+    container_name: fuzz-drf-example-coverage
     image: fuzz-drf-example
     build:
       context: .
@@ -44,7 +44,7 @@ services:
       - ./fuzz_drf_example:/app
 
   server:
-    container_name: fuzz-drf-example
+    container_name: fuzz-drf-example-server
     image: fuzz-drf-example
     build:
       context: .
@@ -83,7 +83,7 @@ services:
       - ./fuzz_drf_example:/app
 
   schema:
-    container_name: fuzz-drf-example
+    container_name: fuzz-drf-example-schema
     image: fuzz-drf-example
     build:
       context: .

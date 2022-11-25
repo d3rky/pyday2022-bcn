@@ -1,7 +1,7 @@
 version: '3'
 services:
   fuzz:
-    container_name: fuzz-simple-example
+    container_name: fuzz-simple-example-fuzz
     image: fuzz-simple-example
     build:
       context: .
@@ -12,7 +12,7 @@ services:
       - ./fuzz_simple_example:/app
 
   coverage:
-    container_name: fuzz-simple-example
+    container_name: fuzz-simple-example-coverage
     image: fuzz-simple-example
     build:
       context: .
