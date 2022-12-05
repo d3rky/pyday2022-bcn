@@ -720,3 +720,58 @@ But what about the API? Can you use the same technic to write fuzzing tests for 
     Again lot's of `Bad Request` but no more exceptions.
 
 1. And that's all folks! You just fuzz the python code and DRF API!
+
+## Let's fuzz the REST API!
+
+You can easily fuzz your REST API based application with RESTler help. (Full description and instructions you can find here: https://github.com/microsoft/restler-fuzzer).
+ 
+Step-by-step instruction:
+1. `docker-compose run --service-ports server` - Run this command only if you have not already started the application! And remember <your-ip-local-address>! (`ifconfig`)
+2. `cd fuzz-drf-example`
+3. `docker-compose run schema` - it will generate an OpenAPI specification file for our test application.
+4. `cd fuzz-drf-example`- this folder should contain the `schema.yml` file.
+5. `docker pull malchikserega/restler-pyday2022-bcn:latest` - this image already contain prepared and compiled all required RESTler binary files.
+6. `docker run -t -i -v $(pwd)/.:/tmp malchikserega/restler-pyday2022-bcn /bin/sh`
+7. `cd /RESTler/restler`
+   1. ```
+      ./Restler compile --api_spec /tmp/schema.yml
+      
+      ====Output====
+      /RESTler/restler # ./Restler compile --api_spec /tmp/schema.yml
+      Starting task Compile...
+      Task Compile succeeded.
+      Collecting logs...
+      /RESTler/restler #
+
+   2. ```
+      ./Restler fuzz --grammar_file Compile/grammar.py --dictionary_file Compile/dict.json --settings Compile/engine_settings.json --no_ssl --host <your-ip-local-address> --target_port 8000
+      
+      ====Output====
+      /RESTler/restler # ./Restler fuzz --grammar_file Compile/grammar.py --dictionary_file Compile/dict.json --settings Compile/engine_settings.json --no_ssl --host 192.168.1.45 --target_port 8000
+      Starting task Fuzz...
+      Using python: 'python3' (Python 3.10.8)
+      Testing summary was not found.
+      Task Fuzz succeeded.
+      Collecting logs...
+      /RESTler/restler # 
+      ```
+   3. During the fuzzing you may notice that your application is sending a lot of these logs:
+      ```
+      RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 192.168.1.45/accounts/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings. [05/Dec/2022 11:03:48] "POST /accounts HTTP/1.1" 500 12898
+      ```
+   4. All findings may be found in this directory:
+   ```
+   ls -l /RESTler/restler/Fuzz/RestlerResults/experiment<???>/bug_buckets/
+   -rw-r--r--    1 root     root         15449 Dec  5 11:03 PayloadBodyChecker_500_1.txt
+   -rw-r--r--    1 root     root         15392 Dec  5 11:03 PayloadBodyChecker_500_2.txt
+   -rw-r--r--    1 root     root         15367 Dec  5 11:03 PayloadBodyChecker_500_3.txt
+   -rw-r--r--    1 root     root         15408 Dec  5 11:04 PayloadBodyChecker_500_4.txt
+   -rw-r--r--    1 root     root         15389 Dec  5 11:04 PayloadBodyChecker_500_5.txt
+   -rw-r--r--    1 root     root         15340 Dec  5 11:04 PayloadBodyChecker_500_6.txt
+   -rw-r--r--    1 root     root         15445 Dec  5 11:04 PayloadBodyChecker_500_7.txt
+   -rw-r--r--    1 root     root         15490 Dec  5 11:04 PayloadBodyChecker_500_8.txt
+   -rw-r--r--    1 root     root          1176 Dec  5 11:04 bug_buckets.json
+   -rw-r--r--    1 root     root          3698 Dec  5 11:04 bug_buckets.txt
+   -rw-r--r--    1 root     root         15372 Dec  5 11:03 main_driver_500_1.txt
+   ```
+   5. How to manually configure the RESTler's fuzzing dictionary, engine and other settings, read here: https://github.com/microsoft/restler-fuzzer/tree/main/docs/user-guide
